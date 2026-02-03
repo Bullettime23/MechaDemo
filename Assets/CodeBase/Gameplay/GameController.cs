@@ -23,21 +23,6 @@ namespace Mecha
         private void Start()
         {
             m_StateMachine = new GameStateMachine();
-            //foreach (Unit unit in FindObjectsByType(typeof(Unit), FindObjectsSortMode.None))
-            //{
-
-            //    m_Team1Units = new List<Unit>();
-            //    m_Team2Units = new List<Unit>();
-
-            //    if (unit.TeamNumber == 1)
-            //    {
-            //        m_Team1Units.Add(unit);
-            //    }
-            //    else
-            //    {
-            //        m_Team2Units.Add(unit);
-            //    }
-            //}
 
             m_CurrentTeam = m_Team1Units;
             m_SelectedUnitIndex = 0;
@@ -64,9 +49,6 @@ namespace Mecha
             NextTeamTurn();
         }
 
-
-
-
         //Service Methods
 
         public void SelectNextUnit()
@@ -85,15 +67,12 @@ namespace Mecha
             // Move camera to unit
         }
 
-        public void MovementEnd()
-        {
-            m_StateMachine.ChangeState(new StateUnitActionSelect(m_StateMachine));
-        }
-
         public void NextTeamTurn()
         {
             if (m_CurrentTeam == m_Team1Units)
+            {
                 m_CurrentTeam = m_Team2Units;
+            }
             else
             {
                 NextRound();
@@ -102,7 +81,6 @@ namespace Mecha
 
             m_SelectedUnitIndex = 0;
             m_StateMachine.ChangeState(new StateUnitActionSelect(m_StateMachine));
-            Debug.Log("Team changed");
 
             // Если не осталось врагов, объявить победу
         }
@@ -153,14 +131,14 @@ namespace Mecha
         private void FinishMovement()
         {
             GameController.Instance.SelectedUnit.OnMoveEnd -= FinishMovement;
-            GameController.Instance.MovementEnd();
+            GameController.Instance.SelectAction();
         }
 
         // Чтобы щелкнуть правой кнопкой мыши и сбросить передвижение
         private void OnAbortMovement()
         {
             GridBehaviour.Instance.OnPathChoosen -= OnPathCreated;
-            GameController.Instance.MovementEnd();
+            GameController.Instance.SelectAction();
         }
     }
 
@@ -185,25 +163,8 @@ namespace Mecha
             else
             {
                 UIActionsPanel.Instance.EnableMoveButton();
-
             }
         }
-
-        //protected override void ApplyAction()
-        //{
-        //    Unit unitToMove = GameController.Instance.SelectedUnit;
-
-        //    if (unitToMove == null)
-        //    {
-        //        GameController.Instance.NextTeamTurn();
-        //    }
-
-
-        //    if (unitToMove.IsMovedThisTurn)
-        //    {
-        //        UIActionsPanel.Instance.DisableMoveButton();
-        //    }
-        //}
     }
 
     /// <summary>

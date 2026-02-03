@@ -58,7 +58,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.124955505, g: 0.9811321, b: 0.96373975, a: 0.50980395}
+  m_Color: {r: 0.124955505, g: 0.9811321, b: 0.96373975, a: 0}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -272,8 +272,6 @@ MonoBehaviour:
   type: 0
   m_ClickableField: {fileID: 551200495112286140}
   visited: -1
-  x: 0
-  z: 0
 --- !u!4 &7782626444930119019 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 1f55e146427bc814498182fd1db7d302, type: 3}

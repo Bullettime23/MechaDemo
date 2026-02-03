@@ -46,6 +46,7 @@ namespace Mecha
                         currentPathIndex++;
                     else
                     {
+                        m_Path[m_Path.Count - 1].GetComponent<GridStat>().type = GridStat.GridType.Busy;
                         ShouldMove = false;
                         OnMoveEnd?.Invoke();
                     }
@@ -79,9 +80,14 @@ namespace Mecha
 
         public void MoveByPath(List<GameObject> path)
         {
+            GridStat currentGrid = GridBehaviour.Instance.TryGetGrid(transform.position);
+            if (currentGrid != null)
+                currentGrid.type = GridStat.GridType.None;
+
             m_ActionTokens--;
             m_IsMovedThisTurn = true;
             m_Path = path;
+            currentPathIndex = 0;
             ShouldMove = true;
         }
 

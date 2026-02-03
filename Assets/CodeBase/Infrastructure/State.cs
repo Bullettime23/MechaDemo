@@ -7,7 +7,5 @@ namespace Infrastructure {
         {
             m_StateMachine = stateMachine;
         }
-
-        protected virtual void ApplyAction() { }
     }
 }

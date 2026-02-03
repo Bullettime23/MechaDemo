@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using Infrastructure;
 using System;
+using UnityEngine.UI;
 
 namespace Mecha
 {
@@ -11,6 +12,8 @@ namespace Mecha
 
         [SerializeField] private int m_Rows;
         [SerializeField] private int m_Columns;
+        [SerializeField] private Color m_SelectedColor;
+        [SerializeField] private Color m_DefaultColor;
 
         [SerializeField] private Vector3 m_LeftBottomLocation = new Vector3(0, 0, 0);
         private int m_StartX;
@@ -26,13 +29,20 @@ namespace Mecha
         public void EnableGridForClick()
         {
             foreach (GridStat grid in m_GridsList)
+            {
                 grid.EnableField();
+            }
+
+            GridStat.OnGridHover += SetFinishGridOfPath;
         }
 
         public void DisableGridForClick()
         {
             foreach (GridStat grid in m_GridsList)
+            {
+                grid.GetComponentInChildren<Image>().color = m_DefaultColor;
                 grid.DisableField();
+            }
         }
 
         public void SetStartCoordinatesOfUnit(Unit unit)
@@ -41,14 +51,20 @@ namespace Mecha
             m_StartZ = GridToWorldAdapter.PositionToGridCoordinates(unit.transform.position).z;
         }
 
+        public GridStat TryGetGrid(Vector3 position)
+        {
+            int x = GridToWorldAdapter.PositionToGridCoordinates(position).x;
+            int z = GridToWorldAdapter.PositionToGridCoordinates(position).z;
+            if (m_Grids[x, z] && m_Grids[x, z].GetComponent<GridStat>())
+            {
+                return m_Grids[x, z].GetComponent<GridStat>();
+            }
+            return null;
+        }
+
         public void OnGridClick(GridStat grid)
         {
-            m_EndX = grid.x;
-            m_EndZ = grid.z;
-            Debug.Log($"Clicked X: {m_EndX}, Z: {m_EndZ}");
-
-            SetDistanse();
-            SetPath();
+            GridStat.OnGridHover -= SetFinishGridOfPath;
             OnPathChoosen?.Invoke(m_Path);
         }
         #endregion
@@ -83,12 +99,23 @@ namespace Mecha
 
         }
 
+        private void SetFinishGridOfPath(GridStat grid)
+        {
+            m_EndX = grid.x;
+            m_EndZ = grid.z;
+
+            SetDistanse();
+            SetPath();
+        }
+
         private void InitialSetup()
         {
             foreach (GridStat grid in m_Grids)
             {
-                if (grid != null)
+                if (grid != null){
                     grid.visited = -1;
+                    grid.GetComponentInChildren<Image>().color = m_DefaultColor;
+                }
             }
             m_Grids[m_StartX, m_StartZ].visited = 0;
         }
@@ -153,6 +180,7 @@ namespace Mecha
             {
                 m_Path.Add(m_Grids[x, z].gameObject);
                 step = m_Grids[x, z].GetComponent<GridStat>().visited - 1;
+                m_Grids[x, z].GetComponentInChildren<Image>().color = m_SelectedColor;
             }
             else
             {
@@ -170,12 +198,16 @@ namespace Mecha
                 if (TestDirection(x, z, step, 4))
                     tempList.Add(m_Grids[x - 1, z].gameObject);
 
-                GameObject tempObject = FindClosest(m_Grids[m_EndX, m_EndZ].transform, tempList);
+                if (tempList.Count > 0)
+                {
+                    GameObject tempObject = FindClosest(m_Grids[m_EndX, m_EndZ].transform, tempList);
+                    tempObject.GetComponentInChildren<Image>().color = m_SelectedColor;
 
-                m_Path.Add(tempObject);
-                x = tempObject.GetComponent<GridStat>().x;
-                z = tempObject.GetComponent<GridStat>().z;
-                tempList.Clear();
+                    m_Path.Add(tempObject);
+                    x = tempObject.GetComponent<GridStat>().x;
+                    z = tempObject.GetComponent<GridStat>().z;
+                    tempList.Clear();
+                }
             }
             m_Path.Reverse();
         }
