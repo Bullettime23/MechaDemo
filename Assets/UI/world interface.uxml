@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/my_styles.uss?fileID=7433441132597879392&amp;guid=6de8d69b7d348cf489fb85c5b900abd2&amp;type=3#my_styles" />
+    <ui:VisualElement style="flex-grow: 1;" />
+</ui:UXML>
