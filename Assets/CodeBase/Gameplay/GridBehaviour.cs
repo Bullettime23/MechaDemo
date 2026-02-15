@@ -9,11 +9,14 @@ namespace Mecha
     public class GridBehaviour : Singleton<GridBehaviour>
     {
         public Action<List<GameObject>> OnPathChoosen;
+        public Action<GameObject> OnTargetChoosen;
 
         [SerializeField] private int m_Rows;
         [SerializeField] private int m_Columns;
         [SerializeField] private Color m_SelectedColor;
+        public Color SelectedColor => m_SelectedColor;
         [SerializeField] private Color m_DefaultColor;
+        public Color DefaultColor => m_DefaultColor;
 
         [SerializeField] private Vector3 m_LeftBottomLocation = new Vector3(0, 0, 0);
         private int m_StartX;
@@ -26,7 +29,7 @@ namespace Mecha
         private List<GameObject> m_Path = new List<GameObject>();
 
         #region Public API
-        public void EnableGridForClick()
+        public void SelectPathEnd()
         {
             foreach (GridStat grid in m_GridsList)
             {
@@ -40,7 +43,7 @@ namespace Mecha
         {
             foreach (GridStat grid in m_GridsList)
             {
-                grid.GetComponentInChildren<Image>().color = m_DefaultColor;
+                grid.HideFieldInterface();
                 grid.DisableField();
             }
         }
@@ -55,12 +58,37 @@ namespace Mecha
         {
             int x = GridToWorldAdapter.PositionToGridCoordinates(position).x;
             int z = GridToWorldAdapter.PositionToGridCoordinates(position).z;
-            if (m_Grids[x, z] && m_Grids[x, z].GetComponent<GridStat>())
-            {
-                return m_Grids[x, z].GetComponent<GridStat>();
-            }
-            return null;
+            return m_Grids[x, z] != null ? m_Grids[x, z] : null;
         }
+
+        public void SetGridsAroundAsCover(GridStat grid, CoverType coverType)
+        {
+            int x = grid.x;
+            int z = grid.z;
+
+            //left to right
+            if (x - 1 > -1 && m_Grids[x - 1, z])
+            {
+                m_Grids[x - 1, z].AddCover(new Cover(CoverDirection.Right, coverType));
+            }
+            // bottom to top
+            if (z - 1 > -1 && m_Grids[x, z - 1])
+            {
+                m_Grids[x, z - 1].AddCover(new Cover(CoverDirection.Top, coverType));
+            }
+            // right to left
+            if (x + 1 < m_Columns && m_Grids[x + 1, z])
+            {
+                m_Grids[x + 1, z].AddCover(new Cover(CoverDirection.Left, coverType));
+            }
+            // top to bottom
+            if (z + 1 < m_Rows && m_Grids[x, z + 1])
+            {
+                m_Grids[x, z + 1].AddCover(new Cover(CoverDirection.Bottom, coverType));
+            }
+        }
+
+        //TODO: Remove cover
 
         public void OnGridClick(GridStat grid)
         {
@@ -77,12 +105,14 @@ namespace Mecha
             base.Awake();
             GridToWorldAdapter.LeftBottomPosition = m_LeftBottomLocation;
             GridToWorldAdapter.GridScale = (int)transform.parent.transform.localScale.x;
-        }
-        private void Start()
-        {
             m_Grids = new GridStat[m_Columns, m_Rows];
             GenerateGrid();
         }
+        //private void Start()
+        //{
+        //    m_Grids = new GridStat[m_Columns, m_Rows];
+        //    GenerateGrid();
+        //}
         #endregion
 
         #region Utility functions
@@ -108,13 +138,44 @@ namespace Mecha
             SetPath();
         }
 
+        #region Attack
+        private GridStat m_TargetGrid;
+        public void SelectTarget()
+        {
+            foreach (GridStat grid in m_GridsList)
+            {
+                grid.EnableField();
+            }
+            GridStat.OnGridHover += DisplaySingleField;
+            GridStat.OnGridClick += GetObjectOnTheGrid;
+        }
+
+        private void DisplaySingleField(GridStat grid)
+        {
+            if (m_TargetGrid != null) {
+                m_TargetGrid.HideFieldInterface();
+            }
+            grid.ShowFieldInterface();
+            m_TargetGrid = grid;
+        }
+        private void GetObjectOnTheGrid(GridStat grid)
+        {
+            OnTargetChoosen(grid.ObjectOnGrid);
+            GridStat.OnGridClick -= GetObjectOnTheGrid;
+            GridStat.OnGridHover -= DisplaySingleField;
+        }
+
+
+        #endregion
+
         private void InitialSetup()
         {
             foreach (GridStat grid in m_Grids)
             {
-                if (grid != null){
+                if (grid != null)
+                {
                     grid.visited = -1;
-                    grid.GetComponentInChildren<Image>().color = m_DefaultColor;
+                    grid.HideFieldInterface();
                 }
             }
             m_Grids[m_StartX, m_StartZ].visited = 0;
@@ -127,21 +188,13 @@ namespace Mecha
             switch (direction)
             {
                 case 4:
-                    return x - 1 > -1 && m_Grids[x - 1, z] &&
-                        m_Grids[x - 1, z].GetComponent<GridStat>().type == GridStat.GridType.None &&
-                        m_Grids[x - 1, z].GetComponent<GridStat>().visited == step;
+                    return x - 1 > -1 && m_Grids[x - 1, z] && !m_Grids[x - 1, z].IsBusy && m_Grids[x - 1, z].visited == step;
                 case 3:
-                    return z - 1 > -1 && m_Grids[x, z - 1] &&
-                        m_Grids[x, z - 1].GetComponent<GridStat>().type == GridStat.GridType.None &&
-                        m_Grids[x, z - 1].GetComponent<GridStat>().visited == step;
+                    return z - 1 > -1 && m_Grids[x, z - 1] && !m_Grids[x, z - 1].IsBusy && m_Grids[x, z - 1].visited == step;
                 case 2:
-                    return x + 1 < m_Columns && m_Grids[x + 1, z] &&
-                        m_Grids[x + 1, z].GetComponent<GridStat>().type == GridStat.GridType.None &&
-                        m_Grids[x + 1, z].GetComponent<GridStat>().visited == step;
+                    return x + 1 < m_Columns && m_Grids[x + 1, z] && !m_Grids[x + 1, z].IsBusy && m_Grids[x + 1, z].visited == step;
                 case 1:
-                    return z + 1 < m_Rows && m_Grids[x, z + 1] &&
-                        m_Grids[x, z + 1].GetComponent<GridStat>().type == GridStat.GridType.None &&
-                        m_Grids[x, z + 1].GetComponent<GridStat>().visited == step;
+                    return z + 1 < m_Rows && m_Grids[x, z + 1] && !m_Grids[x, z + 1].IsBusy && m_Grids[x, z + 1].visited == step;
                 default:
                     return false;
             }
@@ -170,17 +223,17 @@ namespace Mecha
             int step;
             int x = m_EndX;
             int z = m_EndZ;
-            List<GameObject> tempList = new List<GameObject>();
+            List<GridStat> tempList = new List<GridStat>();
             m_Path.Clear();
 
             GridStat destination = m_Grids[m_EndX, m_EndZ];
 
-            if (destination && destination.GetComponent<GridStat>().visited > 0
+            if (destination && destination.visited > 0
             )
             {
                 m_Path.Add(m_Grids[x, z].gameObject);
-                step = m_Grids[x, z].GetComponent<GridStat>().visited - 1;
-                m_Grids[x, z].GetComponentInChildren<Image>().color = m_SelectedColor;
+                step = m_Grids[x, z].visited - 1;
+                m_Grids[x, z].ShowFieldInterface();
             }
             else
             {
@@ -190,20 +243,20 @@ namespace Mecha
             for (int i = step; step > -1; step--)
             {
                 if (TestDirection(x, z, step, 1))
-                    tempList.Add(m_Grids[x, z + 1].gameObject);
+                    tempList.Add(m_Grids[x, z + 1]);
                 if (TestDirection(x, z, step, 2))
-                    tempList.Add(m_Grids[x + 1, z].gameObject);
+                    tempList.Add(m_Grids[x + 1, z]);
                 if (TestDirection(x, z, step, 3))
-                    tempList.Add(m_Grids[x, z - 1].gameObject);
+                    tempList.Add(m_Grids[x, z - 1]);
                 if (TestDirection(x, z, step, 4))
-                    tempList.Add(m_Grids[x - 1, z].gameObject);
+                    tempList.Add(m_Grids[x - 1, z]);
 
                 if (tempList.Count > 0)
                 {
-                    GameObject tempObject = FindClosest(m_Grids[m_EndX, m_EndZ].transform, tempList);
-                    tempObject.GetComponentInChildren<Image>().color = m_SelectedColor;
+                    GridStat tempObject = FindClosest(m_Grids[m_EndX, m_EndZ].transform, tempList);
+                    tempObject.GetComponentInChildren<GridStat>().ShowFieldInterface();
 
-                    m_Path.Add(tempObject);
+                    m_Path.Add(tempObject.gameObject);
                     x = tempObject.GetComponent<GridStat>().x;
                     z = tempObject.GetComponent<GridStat>().z;
                     tempList.Clear();
@@ -229,7 +282,7 @@ namespace Mecha
             m_Grids[x, z].GetComponent<GridStat>().visited = step;
         }
 
-        private GameObject FindClosest(Transform targetLocation, List<GameObject> list)
+        private GridStat FindClosest(Transform targetLocation, List<GridStat> list)
         {
             float currentDistance = m_Rows * m_Columns;
             int indexNumber = 0;
