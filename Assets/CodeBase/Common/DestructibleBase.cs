@@ -34,7 +34,7 @@ namespace Common
 
         #region Unity_Events
 
-        protected virtual void Start()
+        protected virtual void Awake()
         {
             m_CurrentHitPoints = m_HitPoints;
         }
@@ -46,7 +46,7 @@ namespace Common
         /// Вызывается при получении объектом урона
         /// </summary>
         /// <param name="damage">Количество урона</param>
-        public void ApplyDamage(int damage)
+        public virtual void ApplyDamage(int damage)
         {
             if (m_Indestructable) return;
 
