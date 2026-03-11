@@ -10,7 +10,9 @@ namespace Mecha
     {
         [SerializeField] private float m_MoveSpeed;
         [SerializeField] private float m_RotationSpeed = 30;
-        [SerializeField] private int m_MaxMoveDistanse;
+        [SerializeField] private int m_MoveDistance = 5;
+        public int MoveDistance => m_MoveDistance;
+
         [SerializeField] private float m_MaxShotDistanse;
         [SerializeField] private float m_MinDistanceFromPoint = 0.1f;
         [SerializeField] private Turret[] m_Turrets;
@@ -34,6 +36,8 @@ namespace Mecha
         #region Unity Actions
         private void Start()
         {
+            InGameHUDController.Instance.CreateStatusPanel(this);
+
             m_CurrentGrid = GridBehaviour.Instance.TryGetGrid(transform.position);
         }
 
@@ -41,6 +45,8 @@ namespace Mecha
         {
             if (ShouldMove)
             {
+                //Нужно получить однородное движение
+
                 // Получить следующий узел маршрута
                 if (currentPathIndex < m_Path.Count)
                 {
@@ -48,18 +54,19 @@ namespace Mecha
                     Vector3 nextNodePostion = m_Path[currentPathIndex].transform.position;
                     m_MoveTarget = new Vector3(nextNodePostion.x, transform.position.y, nextNodePostion.z);
                 }
+
                 // Повернуться к следующей клетке
                 if (TurnToNextPoint())
                 {
                     MoveToNextNode();
                 }
-
             }
         }
-
         #endregion
 
         #region Movement
+
+        public HashSet<GridStat> ReachableGrids;
         private bool TurnToNextPoint()
         {
             Vector3 direction = m_MoveTarget - transform.position;
@@ -70,6 +77,7 @@ namespace Mecha
             }
 
             Quaternion lookRotation = Quaternion.LookRotation(direction);
+
 
             if (transform.rotation == lookRotation)
             {
@@ -83,7 +91,7 @@ namespace Mecha
         private void MoveToNextNode()
         {
             // двигаться к нему, пока не будет достигнут
-            transform.position += (m_MoveTarget - transform.position) * m_MoveSpeed * Time.deltaTime;
+            transform.position += m_MoveSpeed * Time.deltaTime * (m_MoveTarget - transform.position);
 
             // повторить для следующего узла
             // если последний узел, ShouldMove = false
@@ -96,6 +104,8 @@ namespace Mecha
                     m_CurrentGrid = m_Path[m_Path.Count - 1].GetComponent<GridStat>();
                     m_CurrentGrid.PlaceObjectToGrid(gameObject);
                     //m_Covers = m_CurrentGrid.TakeCover();
+                    // В конце хода юнит может дотянуться до других клеток
+                    GridBehaviour.Instance.ResetReachableGrids(this);
                     ShouldMove = false;
                     OnMoveEnd?.Invoke();
                 }
@@ -107,7 +117,6 @@ namespace Mecha
         [SerializeField] private int m_MoveTokensInitial = 1;
         [SerializeField] private int m_AttackTokensInitial = 1;
 
-        private int m_Move;
         private int m_MoveTokens;
         private int m_AttackTokens;
 
@@ -117,10 +126,22 @@ namespace Mecha
         public int AttackTokens => m_AttackTokens;
         public int TeamNumber => m_TeamNumber;
 
+        private Cover m_Cover;
+        public Cover CoverTook
+        {
+            get { return m_Cover; }
+            set
+            {
+                m_Cover = value;
+                OnStatusChange?.Invoke();
+            }
+        }
+
         public void OnTurnStart()
         {
             m_AttackTokens = m_AttackTokensInitial;
             m_MoveTokens = m_MoveTokensInitial;
+            ReachableGrids = null;
             OnStatusChange?.Invoke();
         }
 
@@ -128,6 +149,7 @@ namespace Mecha
         {
             m_AttackTokens = 0;
             m_MoveTokens = 0;
+            OnStatusChange?.Invoke();
         }
 
         public void MoveByPath(List<GameObject> path)

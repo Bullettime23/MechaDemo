@@ -301,7 +301,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 279636843077269118, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 279636843077269118, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_AnchorMin.x
@@ -309,7 +309,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 279636843077269118, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 279636843077269118, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_SizeDelta.x
@@ -317,7 +317,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 279636843077269118, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 0
+      value: 600
       objectReference: {fileID: 0}
     - target: {fileID: 279636843077269118, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_LocalPosition.x
@@ -349,11 +349,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 279636843077269118, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 752.5
       objectReference: {fileID: 0}
     - target: {fileID: 279636843077269118, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0
+      value: -300
       objectReference: {fileID: 0}
     - target: {fileID: 279636843077269118, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -382,6 +382,10 @@ PrefabInstance:
     - target: {fileID: 7534342677023922628, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_Name
       value: CardLevel_2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7534342677023922628, guid: 021223190826672448e32b54a1ce1798, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1243,6 +1247,10 @@ PrefabInstance:
       propertyPath: m_Props
       value: 
       objectReference: {fileID: 11400000, guid: ca63b2e3f6f2a804aa4850434456a188, type: 2}
+    - target: {fileID: 7256173637159775577, guid: 021223190826672448e32b54a1ce1798, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 176632df2cf247c41a5513eba731d418, type: 3}
     - target: {fileID: 7534342677023922628, guid: 021223190826672448e32b54a1ce1798, type: 3}
       propertyPath: m_Name
       value: CardLevel_1

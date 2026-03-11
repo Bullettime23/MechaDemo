@@ -16,7 +16,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &1232575921366115557
 Transform:
@@ -45,11 +45,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2af0fb9953a72ae42ad88959c2a66d11, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_DoNotDestroyOnLoad: 0
+  m_DoNotDestroyOnLoad: 1
   m_Team1Units:
   - {fileID: 0}
   - {fileID: 0}
   m_Team2Units:
+  - {fileID: 0}
   - {fileID: 0}
   m_EnemyTeamColor: {r: 0.5283019, g: 0.08223568, b: 0.08223568, a: 1}
 --- !u!114 &8328872064727746200

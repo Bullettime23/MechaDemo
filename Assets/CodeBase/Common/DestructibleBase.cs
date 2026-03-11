@@ -61,12 +61,12 @@ namespace Common
         /// </summary>
         protected virtual void OnDeath()
         {
-            m_EventOnDeath?.Invoke();
+            m_EventOnDeath?.Invoke(this);
             Destroy(gameObject);
         }
 
-        [SerializeField] private UnityEvent m_EventOnDeath;
-        public UnityEvent EventOnDeath => m_EventOnDeath;
+        [SerializeField] private UnityEvent<DestructibleBase> m_EventOnDeath;
+        public UnityEvent<DestructibleBase> EventOnDeath => m_EventOnDeath;
 
         #region Collection
         private static HashSet<DestructibleBase> m_AllDestructibles;

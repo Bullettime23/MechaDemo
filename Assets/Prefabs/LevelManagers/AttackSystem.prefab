@@ -46,3 +46,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_DoNotDestroyOnLoad: 0
   m_CriticalDamageMultiplyer: 1.5
+  m_DefalutHitChanse: 0.9
+  m_DefaultCritChanse: 0.2
+  m_HitChanceReduceByFullCover: 0.8
+  m_CritReduceByFullCover: 0.6
+  m_HitChanceReduceByHalfCover: 0.5
+  m_CritReduceByHalfCover: 0.4

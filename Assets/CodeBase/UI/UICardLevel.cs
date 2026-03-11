@@ -21,7 +21,7 @@ namespace Mecha
 
         public void LoadLevel()
         {
-            LevelController.Instance.LoadLevel(m_Props.levelNumber);
+            LevelController.LoadLevel(m_Props.levelNumber);
         }
     }
 }

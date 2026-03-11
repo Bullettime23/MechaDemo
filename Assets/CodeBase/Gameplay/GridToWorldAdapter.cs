@@ -1,6 +1,7 @@
 using UnityEngine;
 
-namespace Mecha {
+namespace Mecha
+{
     public static class GridToWorldAdapter
     {
         public static int GridScale;
@@ -9,7 +10,7 @@ namespace Mecha {
         public static (int x, int y, int z) PositionToGridCoordinates(Vector3 position)
         {
             Vector3 calculatedVector = (position / GridScale - LeftBottomPosition);
-            return ((int)calculatedVector.x,  (int)calculatedVector.y, (int)calculatedVector.z);
+            return ((int)calculatedVector.x, (int)calculatedVector.y, (int)calculatedVector.z);
         }
 
         public static (int x, int y, int z) LocalCoordinatesToGrid(Vector3 local)

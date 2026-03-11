@@ -17,20 +17,30 @@ namespace Mecha
     {
         public static Action<int> OnTeamTurnChange;
         private GameStateMachine m_StateMachine;
-        [SerializeField] private Unit[] m_Team1Units, m_Team2Units;
-        [SerializeField] private Color m_EnemyTeamColor;
-        private Unit[] m_CurrentTeam;
+        [SerializeField] private List<Unit> m_Team1Units, m_Team2Units;
+        //[SerializeField] private Color m_EnemyTeamColor;
+        private List<Unit> m_CurrentTeam;
         private int m_SelectedUnitIndex;
         private int m_CurrentTeamIndex;
         public int TeamIndex => m_CurrentTeamIndex;
 
-        public Color EnemyColor => m_EnemyTeamColor;
+        //public Color EnemyColor => m_EnemyTeamColor;
 
         private void Start()
         {
             m_StateMachine = new GameStateMachine();
 
             m_CurrentTeam = m_Team1Units;
+
+            foreach (Unit unit in m_Team1Units)
+            {
+                unit.EventOnDeath.AddListener(RemoveFromLists);
+            }
+            foreach (Unit unit in m_Team2Units)
+            {
+                unit.EventOnDeath.AddListener(RemoveFromLists);
+            }
+
             m_CurrentTeamIndex = 1;
             OnTeamTurnChange?.Invoke(m_CurrentTeamIndex);
             m_SelectedUnitIndex = 0;
@@ -39,8 +49,16 @@ namespace Mecha
             // focus camera
         }
 
+        private void RemoveFromLists(DestructibleBase destructible)
+        {
+            Unit unit = destructible.GetComponent<Unit>();
+            unit.EventOnDeath.RemoveListener(RemoveFromLists);
+            m_Team1Units.Remove(unit);
+            m_Team2Units.Remove(unit);
+        }
+
         #region Interface Actions
-        public Unit SelectedUnit => m_CurrentTeam.Length > 0 ? m_CurrentTeam[m_SelectedUnitIndex] : null;
+        public Unit SelectedUnit => m_CurrentTeam.Count > 0 ? m_CurrentTeam[m_SelectedUnitIndex] : null;
 
         public void SelectAction()
         {
@@ -64,8 +82,10 @@ namespace Mecha
                 m_StateMachine.ChangeState(new StateGameEnd(m_StateMachine));
                 return;
             }
+            // Попытаться передать ход следующему юниту с очками действий, если такой есть
             if (SelectNextUnit())
             {
+                SelectAction();
                 return;
             }
             NextTeamTurn();
@@ -78,32 +98,44 @@ namespace Mecha
         //если нет, передать ход следующей команде
 
         /// <summary>
-        /// Выбрать следующий юнит с очками действия
+        /// Пройтись по массиву слева направо, до конца и сначала до текущего юнита,
+        /// проверяя, остались ли юниты с очками действия
         /// </summary>
         public bool SelectNextUnit()
         {
             int unitIndexWithActionPoints = -1;
             // Ищем справа
-            for (int i = m_SelectedUnitIndex + 1; i < m_CurrentTeam.Length; i++)
+            for (int i = m_SelectedUnitIndex + 1; i < m_CurrentTeam.Count; i++)
             {
+                //Пропускаем убитых юнитов
+                if (m_CurrentTeam[i] == null)
+                {
+                    continue;
+                }
+
                 if (m_CurrentTeam[i].HasActionTokens)
                 {
                     unitIndexWithActionPoints = i;
+                    SelectAction();
                     break;
                 }
             }
             if (unitIndexWithActionPoints > -1)
             {
                 m_SelectedUnitIndex = unitIndexWithActionPoints;
-                SelectAction();
                 return true;
             }
             //ишем слева направо
             for (int i = 0; i < m_SelectedUnitIndex; i++)
             {
+                if (m_CurrentTeam[i] == null)
+                {
+                    continue;
+                }
                 if (m_CurrentTeam[i].HasActionTokens)
                 {
                     unitIndexWithActionPoints = i;
+                    SelectAction();
                     break;
                 }
             }
@@ -111,7 +143,6 @@ namespace Mecha
             if (unitIndexWithActionPoints > -1)
             {
                 m_SelectedUnitIndex = unitIndexWithActionPoints;
-                SelectAction();
                 return true;
             }
 
@@ -138,7 +169,7 @@ namespace Mecha
                 return;
             }
             // Ищем справа налево
-            for (int i = m_CurrentTeam.Length - 1; i > m_SelectedUnitIndex; i--)
+            for (int i = m_CurrentTeam.Count - 1; i > m_SelectedUnitIndex; i--)
             {
                 if (m_CurrentTeam[i].HasActionTokens)
                 {
@@ -171,7 +202,7 @@ namespace Mecha
                 OnTeamTurnChange?.Invoke(m_CurrentTeamIndex);
             }
 
-            m_SelectedUnitIndex = 0;
+            SelectNextUnit();
             m_StateMachine.ChangeState(new StateUnitActionSelect(m_StateMachine));
 
             // Если не осталось врагов, объявить победу
@@ -180,10 +211,10 @@ namespace Mecha
         public void ResetUnitsActionPoints()
         {
             foreach (Unit unit in m_Team1Units)
-                unit.OnTurnStart();
+                if (unit != null) unit.OnTurnStart();
 
             foreach (Unit unit in m_Team2Units)
-                unit.OnTurnStart();
+                if (unit != null) unit.OnTurnStart();
         }
 
         public void Attack()
@@ -213,7 +244,7 @@ namespace Mecha
 
         #endregion
 
-        private bool CheckIfUnitsLeft(Unit[] team)
+        private bool CheckIfUnitsLeft(List<Unit> team)
         {
             bool isUnitsAlive = false;
             foreach (Unit unit in team)
@@ -240,11 +271,11 @@ namespace Mecha
             UIActionsPanel.Instance.gameObject.SetActive(false);
             Unit unitToMove = GameController.Instance.SelectedUnit;
             //Активировать отображение поля для хода
-            GridBehaviour.Instance.SetStartCoordinatesOfUnit(unitToMove);
-            GridBehaviour.Instance.SelectPathEnd();
+            GridBehaviour.Instance.BuildPath(unitToMove);
 
             //Дождаться, когда игрок выберет клетку для хода
             GridBehaviour.Instance.OnPathChoosen += OnPathCreated;
+            GridBehaviour.Instance.OnAbortSelect += OnAbortMovement;
 
             //Дождаться, когда юнит дойдет, вернуться к фазе выбора действий
 
@@ -252,22 +283,28 @@ namespace Mecha
 
         private void OnPathCreated(List<GameObject> path)
         {
-            GridBehaviour.Instance.DisableGridForClick();
             GameController.Instance.SelectedUnit.OnMoveEnd += FinishMovement;
             GameController.Instance.SelectedUnit.MoveByPath(path);
             GridBehaviour.Instance.OnPathChoosen -= OnPathCreated;
+            GridBehaviour.Instance.OnAbortSelect -= OnAbortMovement;
         }
 
         private void FinishMovement()
         {
             GameController.Instance.SelectedUnit.OnMoveEnd -= FinishMovement;
-            GameController.Instance.SelectAction();
+            if (GameController.Instance.SelectedUnit.HasActionTokens)
+            {
+                GameController.Instance.SelectAction();
+                return;
+            }
+            GameController.Instance.UnitActionsEnd();
         }
 
         // Чтобы щелкнуть правой кнопкой мыши и сбросить передвижение
         private void OnAbortMovement()
         {
             GridBehaviour.Instance.OnPathChoosen -= OnPathCreated;
+            GridBehaviour.Instance.OnAbortSelect -= OnAbortMovement;
             GameController.Instance.SelectAction();
         }
     }
@@ -277,14 +314,10 @@ namespace Mecha
         public StateUnitActionSelect(StateMachine stateMachine) : base(stateMachine)
         {
             Unit unitToMove = GameController.Instance.SelectedUnit;
+
             CameraMovement.Instance.FocusOn(unitToMove.gameObject);
 
             UIActionsPanel.Instance.gameObject.SetActive(true);
-
-            if (unitToMove == null)
-            {
-                GameController.Instance.NextTeamTurn();
-            }
 
 
             if (unitToMove.MoveTokens == 0)
@@ -294,6 +327,14 @@ namespace Mecha
             else
             {
                 UIActionsPanel.Instance.EnableMoveButton();
+            }
+            if (unitToMove.AttackTokens == 0)
+            {
+                UIActionsPanel.Instance.DisableAttackButton();
+            }
+            else
+            {
+                UIActionsPanel.Instance.EnableAttackButton();
             }
         }
     }
@@ -306,36 +347,54 @@ namespace Mecha
             GridBehaviour.Instance.SelectTarget();
 
             GridBehaviour.Instance.OnTargetChoosen += OnObjectChoosen;
+            GridBehaviour.Instance.OnAbortSelect += Cancel;
         }
 
         private void OnObjectChoosen(GameObject clickedTarget)
         {
+            GridBehaviour.Instance.OnAbortSelect -= Cancel;
+            GridBehaviour.Instance.OnTargetChoosen -= OnObjectChoosen;
+
             if (clickedTarget == null)
             {
-                GridBehaviour.Instance.OnTargetChoosen -= OnObjectChoosen;
                 GameController.Instance.SelectAction();
                 return;
             }
             Unit attacker = GameController.Instance.SelectedUnit;
+            // Может вернуть, приведя к ошибке null;
             DestructibleBase firstHitTarget = AttackSystem.Instance.GetFirstObjectOfTrajectory(attacker, clickedTarget);
+            if (firstHitTarget == null)
+            {
+                GameController.Instance.SelectAction();
+                return;
+            }
             AttackSystem.Instance.TryAttackSelectedTarget(attacker, firstHitTarget, Done);
-            // Показать интерфейс
-            GridBehaviour.Instance.OnTargetChoosen -= OnObjectChoosen;
         }
 
         private void Done()
         {
+            if (GameController.Instance.SelectedUnit.HasActionTokens)
+            {
+                GameController.Instance.SelectAction();
+                return;
+            }
             GameController.Instance.UnitActionsEnd();
+        }
+
+        private void Cancel()
+        {
+            GridBehaviour.Instance.OnTargetChoosen -= OnObjectChoosen;
+            GridBehaviour.Instance.OnAbortSelect -= Cancel;
+            GameController.Instance.SelectAction();
         }
     }
 
 
     public class StateGameEnd : State
     {
-        public StateGameEnd(StateMachine stateMachine) : base(stateMachine) {
-            UIActionsPanel.Instance.gameObject.SetActive(false);
+        public StateGameEnd(StateMachine stateMachine) : base(stateMachine)
+        {
+            InGameHUDController.Instance.DisableInGameInterface();
         }
-
-        // Нанести урон горящим зданиям, например
     }
 }

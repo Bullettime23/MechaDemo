@@ -2,43 +2,66 @@ using UnityEngine;
 using System.Collections.Generic;
 using Infrastructure;
 using System;
-using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace Mecha
 {
+    [RequireComponent(typeof(LineRenderer))]
     public class GridBehaviour : Singleton<GridBehaviour>
     {
+        /// <summary>
+        /// События при построении пути, выборе цели и отмене действия
+        /// </summary>
         public Action<List<GameObject>> OnPathChoosen;
         public Action<GameObject> OnTargetChoosen;
+        public Action OnAbortSelect;
 
+        // Знает количество строк и столбцов (Задается от руки)
         [SerializeField] private int m_Rows;
         [SerializeField] private int m_Columns;
-        [SerializeField] private Color m_SelectedColor;
-        public Color SelectedColor => m_SelectedColor;
-        [SerializeField] private Color m_DefaultColor;
-        public Color DefaultColor => m_DefaultColor;
 
-        [SerializeField] private Vector3 m_LeftBottomLocation = new Vector3(0, 0, 0);
-        private int m_StartX;
-        private int m_StartZ;
-        private int m_EndX;
-        private int m_EndZ;
+        //Нижнее левое положение в реальном мире
+        [SerializeField] private Vector3Int m_LeftBottomLocation = new Vector3Int(0, 0, 0);
 
+        //Двумерный массив ссылок на клетки игрового поля
         private GridStat[,] m_Grids;
+        public GridStat[,] Grids => m_Grids;
+
         private List<GridStat> m_GridsList;
-        private List<GameObject> m_Path = new List<GameObject>();
+
+        private Unit m_UnitToMove;
 
         #region Public API
-        public void SelectPathEnd()
+        /// <summary>
+        /// Активирует интерфейс поля для выбора последней клетки на пути
+        /// </summary>
+        public void BuildPath(Unit unit)
         {
+            m_UnitToMove = unit;
             foreach (GridStat grid in m_GridsList)
             {
                 grid.EnableField();
             }
 
+            // Рассчитать количество ходов до доступных клеток
+            if (unit.ReachableGrids == null)
+            {
+                unit.ReachableGrids = GridBehaviourPathing.FindReachableGridsWithBreadthFirstSearch(unit);
+            }            
+
+            // Разметить достижимые клетки поиском в ширину
+            foreach (GridStat grid in unit.ReachableGrids)
+            {
+                grid.ShowFieldInterfaceCovers();
+            }
+
             GridStat.OnGridHover += SetFinishGridOfPath;
+            GridStat.OnGridClick += OnGridClick;
         }
 
+        /// <summary>
+        /// Отключает интерфейс клеток на поле, отписывается от событий
+        /// </summary>
         public void DisableGridForClick()
         {
             foreach (GridStat grid in m_GridsList)
@@ -48,12 +71,7 @@ namespace Mecha
             }
         }
 
-        public void SetStartCoordinatesOfUnit(Unit unit)
-        {
-            m_StartX = GridToWorldAdapter.PositionToGridCoordinates(unit.transform.position).x;
-            m_StartZ = GridToWorldAdapter.PositionToGridCoordinates(unit.transform.position).z;
-        }
-
+        // Д
         public GridStat TryGetGrid(Vector3 position)
         {
             int x = GridToWorldAdapter.PositionToGridCoordinates(position).x;
@@ -61,7 +79,16 @@ namespace Mecha
             return m_Grids[x, z] != null ? m_Grids[x, z] : null;
         }
 
-        public void SetGridsAroundAsCover(GridStat grid, CoverType coverType)
+        #region Covers
+
+        // TODO: Можно упростить
+
+        /// <summary>
+        /// Клетки вокруг получают соответствующее укрытие
+        /// </summary>
+        /// <param name="grid"></param>
+        /// <param name="gridContent"></param>
+        public void SetGridsAroundAsCover(GridStat grid, GridContent gridContent)
         {
             int x = grid.x;
             int z = grid.z;
@@ -69,53 +96,73 @@ namespace Mecha
             //left to right
             if (x - 1 > -1 && m_Grids[x - 1, z])
             {
-                m_Grids[x - 1, z].AddCover(new Cover(CoverDirection.Right, coverType));
+                m_Grids[x - 1, z].AddCover(new Cover(CoverDirection.Right, gridContent.ObstacleCoverType, gridContent));
             }
             // bottom to top
             if (z - 1 > -1 && m_Grids[x, z - 1])
             {
-                m_Grids[x, z - 1].AddCover(new Cover(CoverDirection.Top, coverType));
+                m_Grids[x, z - 1].AddCover(new Cover(CoverDirection.Top, gridContent.ObstacleCoverType, gridContent));
             }
             // right to left
             if (x + 1 < m_Columns && m_Grids[x + 1, z])
             {
-                m_Grids[x + 1, z].AddCover(new Cover(CoverDirection.Left, coverType));
+                m_Grids[x + 1, z].AddCover(new Cover(CoverDirection.Left, gridContent.ObstacleCoverType, gridContent));
             }
             // top to bottom
             if (z + 1 < m_Rows && m_Grids[x, z + 1])
             {
-                m_Grids[x, z + 1].AddCover(new Cover(CoverDirection.Bottom, coverType));
+                m_Grids[x, z + 1].AddCover(new Cover(CoverDirection.Bottom, gridContent.ObstacleCoverType, gridContent));
             }
         }
 
-        //TODO: Remove cover
-
-        public void OnGridClick(GridStat grid)
+        public void RemoveCoverFromGridsAround(GridStat grid)
         {
-            GridStat.OnGridHover -= SetFinishGridOfPath;
-            OnPathChoosen?.Invoke(m_Path);
-        }
-        #endregion
+            int x = grid.x;
+            int z = grid.z;
 
+            //left to right
+            if (x - 1 > -1 && m_Grids[x - 1, z])
+            {
+                m_Grids[x - 1, z].RemoveCover(CoverDirection.Right);
+            }
+            // bottom to top
+            if (z - 1 > -1 && m_Grids[x, z - 1])
+            {
+                m_Grids[x, z - 1].RemoveCover(CoverDirection.Top);
+            }
+            // right to left
+            if (x + 1 < m_Columns && m_Grids[x + 1, z])
+            {
+                m_Grids[x + 1, z].RemoveCover(CoverDirection.Left);
+            }
+            // top to bottom
+            if (z + 1 < m_Rows && m_Grids[x, z + 1])
+            {
+                m_Grids[x, z + 1].RemoveCover(CoverDirection.Bottom);
+            }
+        }
+
+        #endregion
+        #endregion
 
         #region Unity Actions
 
         private new void Awake()
         {
             base.Awake();
+            m_LineRend = GetComponent<LineRenderer>();
+            m_LineRend.enabled = false;
+
             GridToWorldAdapter.LeftBottomPosition = m_LeftBottomLocation;
             GridToWorldAdapter.GridScale = (int)transform.parent.transform.localScale.x;
             m_Grids = new GridStat[m_Columns, m_Rows];
             GenerateGrid();
         }
-        //private void Start()
-        //{
-        //    m_Grids = new GridStat[m_Columns, m_Rows];
-        //    GenerateGrid();
-        //}
         #endregion
 
         #region Utility functions
+
+        // Создание двумерного массива с клетками
         private void GenerateGrid()
         {
             m_GridsList = new List<GridStat>();
@@ -127,15 +174,6 @@ namespace Mecha
                 m_Grids[grid.x, grid.z] = grid;
             }
 
-        }
-
-        private void SetFinishGridOfPath(GridStat grid)
-        {
-            m_EndX = grid.x;
-            m_EndZ = grid.z;
-
-            SetDistanse();
-            SetPath();
         }
 
         #region Attack
@@ -152,151 +190,94 @@ namespace Mecha
 
         private void DisplaySingleField(GridStat grid)
         {
-            if (m_TargetGrid != null) {
+            if (m_TargetGrid != null)
+            {
                 m_TargetGrid.HideFieldInterface();
             }
             grid.ShowFieldInterface();
             m_TargetGrid = grid;
         }
-        private void GetObjectOnTheGrid(GridStat grid)
+        private void GetObjectOnTheGrid((GridStat grid, PointerEventData pointerData) props)
         {
-            OnTargetChoosen(grid.ObjectOnGrid);
             GridStat.OnGridClick -= GetObjectOnTheGrid;
             GridStat.OnGridHover -= DisplaySingleField;
+            if (props.pointerData.button == PointerEventData.InputButton.Right || !props.grid.IsBusy)
+            {
+                OnAbortSelect?.Invoke();
+            }
+            if (props.pointerData.button == PointerEventData.InputButton.Left && props.grid.IsBusy)
+            {
+                OnTargetChoosen(props.grid.ObjectOnGrid);
+            }
+            m_TargetGrid.HideFieldInterface();
+            m_TargetGrid = null;
         }
 
-
+        /// <summary>
+        /// Удаляет индекс шага со всех клеток на поле и отключает интерфейс
+        /// </summary>
+        //private void InitialSetup()
+        //{
+        //    foreach (GridStat grid in m_Grids)
+        //    {
+        //        if (grid != null)
+        //        {
+        //            grid.visited = -1;
+        //            grid.HideFieldInterface();
+        //        }
+        //    }
+        //}
         #endregion
 
-        private void InitialSetup()
+        #region Pathfinding
+        //Одноразовый объект пути
+        private List<GameObject> m_Path = new List<GameObject>();
+        private LineRenderer m_LineRend;
+
+        public void ResetReachableGrids(Unit unit)
         {
-            foreach (GridStat grid in m_Grids)
+            foreach (GridStat grid in unit.ReachableGrids)
             {
-                if (grid != null)
-                {
-                    grid.visited = -1;
-                    grid.HideFieldInterface();
-                }
+                unit.ReachableGrids = null;
+                grid.ResetPath();
+                grid.HideFieldInterface();
             }
-            m_Grids[m_StartX, m_StartZ].visited = 0;
+
+            m_Path.Clear();                
         }
 
-        private bool TestDirection(int x, int z, int step, int direction)
+        /// <summary>
+        /// Срабатывает при наведении на клетку поля. Сначала размечает все клетки на поле шагами
+        /// Затем устанавливает путь
+        /// </summary>
+        /// <param name="grid"></param>
+        private void SetFinishGridOfPath(GridStat destination)
         {
-
-            // int direction tells me which case to use 1 is up, 2 is right, 3 is down, 4 is left
-            switch (direction)
+            if (m_UnitToMove.ReachableGrids.Contains(destination))
             {
-                case 4:
-                    return x - 1 > -1 && m_Grids[x - 1, z] && !m_Grids[x - 1, z].IsBusy && m_Grids[x - 1, z].visited == step;
-                case 3:
-                    return z - 1 > -1 && m_Grids[x, z - 1] && !m_Grids[x, z - 1].IsBusy && m_Grids[x, z - 1].visited == step;
-                case 2:
-                    return x + 1 < m_Columns && m_Grids[x + 1, z] && !m_Grids[x + 1, z].IsBusy && m_Grids[x + 1, z].visited == step;
-                case 1:
-                    return z + 1 < m_Rows && m_Grids[x, z + 1] && !m_Grids[x, z + 1].IsBusy && m_Grids[x, z + 1].visited == step;
-                default:
-                    return false;
-            }
-        }
-
-        private void SetDistanse()
-        {
-            InitialSetup();
-            int x = m_StartX;
-            int z = m_StartZ;
-            //int[,] testArray = new int[m_Columns, m_Rows];
-            for (int step = 1; step < m_Rows * m_Columns; step++)
-            {
-                foreach (GridStat grid in m_Grids)
-                {
-                    if (grid != null && grid.visited == step - 1)
-                    {
-                        TestFourDirections(grid.x, grid.z, step);
-                    }
-                }
+                m_Path = GridBehaviourPathing.CreatePathBetweenGrids(m_UnitToMove.CurrentGrid, destination);
+                GridBehaviourPathing.HighlightPathWithLine(m_Path, m_LineRend);
             }
         }
 
-        private void SetPath()
+        private void OnGridClick((GridStat grid, PointerEventData pointerData) props)
         {
-            int step;
-            int x = m_EndX;
-            int z = m_EndZ;
-            List<GridStat> tempList = new List<GridStat>();
-            m_Path.Clear();
+            DisableGridForClick();
 
-            GridStat destination = m_Grids[m_EndX, m_EndZ];
+            GridStat.OnGridHover -= SetFinishGridOfPath;
+            GridStat.OnGridClick -= OnGridClick;
 
-            if (destination && destination.visited > 0
-            )
+            m_LineRend.enabled = false;
+            // Если кликнуть не правой кнопкой мыши или слишком далеко от юнита
+            if (props.pointerData.button == PointerEventData.InputButton.Left && props.grid.visited != -1)
             {
-                m_Path.Add(m_Grids[x, z].gameObject);
-                step = m_Grids[x, z].visited - 1;
-                m_Grids[x, z].ShowFieldInterface();
-            }
-            else
-            {
-                print("Cant reach this location");
+                OnPathChoosen?.Invoke(m_Path);
                 return;
             }
-            for (int i = step; step > -1; step--)
-            {
-                if (TestDirection(x, z, step, 1))
-                    tempList.Add(m_Grids[x, z + 1]);
-                if (TestDirection(x, z, step, 2))
-                    tempList.Add(m_Grids[x + 1, z]);
-                if (TestDirection(x, z, step, 3))
-                    tempList.Add(m_Grids[x, z - 1]);
-                if (TestDirection(x, z, step, 4))
-                    tempList.Add(m_Grids[x - 1, z]);
 
-                if (tempList.Count > 0)
-                {
-                    GridStat tempObject = FindClosest(m_Grids[m_EndX, m_EndZ].transform, tempList);
-                    tempObject.GetComponentInChildren<GridStat>().ShowFieldInterface();
-
-                    m_Path.Add(tempObject.gameObject);
-                    x = tempObject.GetComponent<GridStat>().x;
-                    z = tempObject.GetComponent<GridStat>().z;
-                    tempList.Clear();
-                }
-            }
-            m_Path.Reverse();
+            OnAbortSelect?.Invoke();
         }
-
-        private void TestFourDirections(int x, int z, int step)
-        {
-            if (TestDirection(x, z, -1, 1))
-                SetVisited(x, z + 1, step);
-            if (TestDirection(x, z, -1, 2))
-                SetVisited(x + 1, z, step);
-            if (TestDirection(x, z, -1, 3))
-                SetVisited(x, z - 1, step);
-            if (TestDirection(x, z, -1, 4))
-                SetVisited(x - 1, z, step);
-        }
-
-        public void SetVisited(int x, int z, int step)
-        {
-            m_Grids[x, z].GetComponent<GridStat>().visited = step;
-        }
-
-        private GridStat FindClosest(Transform targetLocation, List<GridStat> list)
-        {
-            float currentDistance = m_Rows * m_Columns;
-            int indexNumber = 0;
-            for (int i = 0; i < list.Count; i++)
-            {
-                float nextDistance = Vector3.Distance(targetLocation.position, list[i].transform.position);
-                if (nextDistance < currentDistance)
-                {
-                    currentDistance = nextDistance;
-                    indexNumber = i;
-                }
-            }
-            return list[indexNumber];
-        }
+        #endregion
         #endregion
     }
 }

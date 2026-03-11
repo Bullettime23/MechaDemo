@@ -4,35 +4,49 @@ namespace Mecha
 {
     public class UIMenu : MonoBehaviour
     {
+        [SerializeField] private RectTransform m_OptionsScreen;
+        [SerializeField] private RectTransform m_MenuScreen;
         public void LoadMenu()
         {
-            LevelController.Instance.LoadMenu();
+            LevelController.LoadMenu();
         }
 
         public void LevelSelect()
         {
-            LevelController.Instance.LevelSelect();
+            LevelController.LevelSelect();
         }
 
         public void LoadOptions()
         {
-            LevelController.Instance.LoadOptions();
+            LevelController.LoadOptions();
+        }
+
+        public void DisplayOptions()
+        {
+            m_MenuScreen.gameObject.SetActive(false);
+            m_OptionsScreen.gameObject.SetActive(true);
+        }
+
+        public void DisplayMainMenu()
+        {
+            m_OptionsScreen.gameObject.SetActive(false);
+            m_MenuScreen.gameObject.SetActive(true);
         }
 
 
         public void RestartLevel()
         {
-            LevelController.Instance.RestartLevel();
+            LevelController.RestartLevel();
         }
 
         public void NextLevel()
         {
-            LevelController.Instance.NextLevel();
+            LevelController.NextLevel();
         }
 
         public void Quit()
         {
-            LevelController.Instance.Quit();
+            LevelController.Quit();
         }
     }
 }

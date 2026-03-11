@@ -361,7 +361,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_DoNotDestroyOnLoad: 0
   m_MoveButton: {fileID: 7799094249415038290}
-  m_AttackButton: {fileID: 0}
+  m_AttackButton: {fileID: 3076629637209594398}
 --- !u!1 &1321612057540634959
 GameObject:
   m_ObjectHideFlags: 0

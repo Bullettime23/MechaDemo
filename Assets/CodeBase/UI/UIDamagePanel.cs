@@ -11,21 +11,21 @@ namespace Mecha
         [SerializeField] private Image m_DamagePanel, m_CriticalPanel;
         [SerializeField] private TextMeshProUGUI m_DamageText, m_CriticalText;
         [SerializeField] private float m_DisplayDuration;
-        [SerializeField] private float m_OffsetY = 1;
+        //[SerializeField] private float m_OffsetY = 1;
 
         private Camera m_Camera;
 
         public void ShowDamage(Vector3 positoin, int damage)
         {
             m_DamageText.text = $"Damage: {damage}";
-            m_DamagePanel.GetComponent<RectTransform>().anchoredPosition = m_Camera.WorldToScreenPoint(positoin + new Vector3(0, m_OffsetY));
+            m_DamagePanel.GetComponent<RectTransform>().anchoredPosition = m_Camera.WorldToScreenPoint(positoin);
             ActivateWithDuration(m_DamagePanel.gameObject);
         }
 
         public void ShowCritical(Vector3 positoin, int damage)
         {
             m_CriticalText.text = $"Critical: {damage}";
-            m_CriticalPanel.GetComponent<RectTransform>().anchoredPosition = m_Camera.WorldToScreenPoint(positoin + new Vector3(0, m_OffsetY));
+            m_CriticalPanel.GetComponent<RectTransform>().anchoredPosition = m_Camera.WorldToScreenPoint(positoin);
 
             ActivateWithDuration(m_CriticalPanel.gameObject);
         }
@@ -33,7 +33,7 @@ namespace Mecha
         public void ShowMiss(Vector3 positoin)
         {
             m_DamageText.text = $"Miss!";
-            m_DamagePanel.GetComponent<RectTransform>().anchoredPosition = m_Camera.WorldToScreenPoint(positoin + new Vector3(0, m_OffsetY));
+            m_DamagePanel.GetComponent<RectTransform>().anchoredPosition = m_Camera.WorldToScreenPoint(positoin);
 
             ActivateWithDuration(m_DamagePanel.gameObject);
         }

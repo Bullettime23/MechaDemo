@@ -36,7 +36,6 @@ namespace Mecha
 
         private void Look(InputAction.CallbackContext context)
         {
-            print($"Look context {context.ReadValue<Vector2>()}");
             m_MouseLook = context.ReadValue<Vector2>();
         }
 
@@ -131,7 +130,7 @@ namespace Mecha
                 m_SholdMove = false;
                 return;
             }
-            m_Camera.transform.transform.position = Vector3.Slerp(m_Camera.transform.transform.position, m_MovePosition, m_Speed / 4 * Time.deltaTime);
+            m_Camera.transform.position = Vector3.Slerp(m_Camera.transform.position, m_MovePosition, m_Speed / 2 * Time.deltaTime);
             m_Camera.orthographicSize = Mathf.SmoothStep(m_Camera.orthographicSize, m_DefaultCamera.orthographicSize, m_MouseSensitivity.zoom * Time.deltaTime);
             m_Camera.transform.eulerAngles = new Vector3(m_RotationTarget.Pitch, m_RotationTarget.Yaw);
             m_CameraRotation = m_RotationTarget;

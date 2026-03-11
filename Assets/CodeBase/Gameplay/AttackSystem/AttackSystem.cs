@@ -11,22 +11,65 @@ namespace Mecha
     public class AttackSystem : Singleton<AttackSystem>
     {
         [SerializeField] private float m_CriticalDamageMultiplyer = 1.5f;
+        [SerializeField]
+        private float
+            m_DefalutHitChanse = 0.9f,
+            m_DefaultCritChanse = 0.2f,
+            m_HitChanceReduceByFullCover,
+            m_CritReduceByFullCover,
+            m_HitChanceReduceByHalfCover,
+            m_CritReduceByHalfCover;
+
         public DestructibleBase GetFirstObjectOfTrajectory(Unit shooter, GameObject target)
         {
             // Сделать Raycast от юнита до цели
-            RaycastHit hit;
+
+            Unit targetUnit = target.GetComponent<Unit>();
 
             Vector3 direction = target.transform.position - shooter.transform.position;
             // Выбрать первую цель на пути
 
+            RaycastHit[] hits = Physics.RaycastAll(shooter.transform.position, direction, direction.magnitude);
 
-            if (Physics.Raycast(shooter.transform.position, direction, out hit))
+            foreach (RaycastHit hit in hits)
             {
-                Debug.Log(hit.transform.gameObject.name);
-                Debug.DrawLine(shooter.transform.position, hit.point);
-                return hit.transform.GetComponent<DestructibleBase>();
+                print(hit.collider.gameObject.name);
             }
-            return null;
+
+            //Узнать, блокируется ли цель 
+            for (int i = 0; i < hits.Length; i++)
+            {
+                DestructibleBase destructible = hits[i].collider.gameObject.GetComponent<DestructibleBase>();
+
+                if (destructible == null)
+                {
+                    //Игнорировать случайные объекты на сцене
+                    continue;
+                }
+                // Не может застрелить себя
+                if (destructible == shooter.GetComponent<DestructibleBase>())
+                {
+                    continue;
+                }
+
+                //Собственное укрытие не считается
+                if (shooter.CoverTook != null && destructible == shooter.CoverTook.Desturctible)
+                {
+                    continue;
+                }
+
+                //Урон по противнику в укрытии считается в следующем методе
+                if (targetUnit != null && targetUnit.CoverTook != null && destructible == targetUnit.CoverTook.Desturctible)
+                {
+                    //Дальше снаряд не полетит )
+                    break;
+                }
+
+                // Есть какое-то препятствие
+                return destructible;
+            }
+
+            return target.GetComponent<DestructibleBase>();
         }
 
         public void TryAttackSelectedTarget(Unit attacker, DestructibleBase target, Action attackOver)
@@ -35,9 +78,9 @@ namespace Mecha
             Unit targetUnit = target.GetComponent<Unit>();
 
             // Может попасть или промахнуться
-            float hitChance = 0.9f;
+            float hitChance = m_DefalutHitChanse;
             float damageMultiplyer = 1f;
-            float critChance = 0.5f;
+            float critChance = m_DefaultCritChanse;
 
             bool isHit = UnityEngine.Random.Range(hitChance, 1f) > 0.6f;
             bool isCritical = false;
@@ -49,7 +92,12 @@ namespace Mecha
 
                 Vector3 reversedDirection = attacker.transform.position - targetUnit.transform.position;
 
-                int attackDirectionInt = Mathf.CeilToInt((180 + Vector3.SignedAngle(Vector3.forward, reversedDirection, Vector3.forward)) / 90);
+                // -180 => 180
+                float signedAngle = Vector3.SignedAngle(Vector3.forward, reversedDirection, Vector3.forward);
+
+                float attackAngle = signedAngle >= 0 ? signedAngle : signedAngle + 180f;
+
+                int attackDirectionInt = Mathf.CeilToInt(attackAngle / 90) + 1;
 
                 Cover affiliatedCover;
                 // Если цель в укрытии, она получает шанс увернуться, меньше урона, меньше вероятность крита
@@ -57,10 +105,9 @@ namespace Mecha
                 if (covers.TryGetValue((CoverDirection)attackDirectionInt, out affiliatedCover))
                 {
                     bool isFullCover = affiliatedCover.Type == CoverType.FullCover;
-                    hitChance -= isFullCover ? 0.8f : 0.4f;
-                    critChance -= isFullCover ? 0.5f : 0.3f;
+                    hitChance -= isFullCover ? m_HitChanceReduceByFullCover : m_HitChanceReduceByHalfCover;
+                    critChance -= isFullCover ? m_CritReduceByFullCover : m_CritReduceByHalfCover;
                 }
-                Debug.Log($"Angle {180 + Vector3.SignedAngle(targetUnit.transform.position, reversedDirection, Vector3.forward)} CoverDirection {affiliatedCover?.Direction}");
 
                 isCritical = UnityEngine.Random.Range(attacker.CritChanse + critChance, 1f) > 0.6f;
                 if (isCritical)
@@ -83,15 +130,22 @@ namespace Mecha
 
             IEnumerator WaitAfterShotAnimation()
             {
-                yield return new WaitForSeconds(1.5f);
+                yield return new WaitForSeconds(2.5f);
                 attackOver?.Invoke();
             }
 
             void AttackerFired()
             {
+                DestructibleBase damageTaker = target;
                 if (isHit)
                 {
                     target.ApplyDamage(calculatedDamage);
+                }
+                //Если урон приходится не на юнит за укрытием, то на укрытие
+                if (targetUnit != null && !isHit && targetUnit.CoverTook != null)
+                {
+                    damageTaker = targetUnit.CoverTook.Desturctible;
+                    damageTaker.ApplyDamage(calculatedDamage);
                 }
 
                 // Показать интерфейс и проиграть анимацию попадания
